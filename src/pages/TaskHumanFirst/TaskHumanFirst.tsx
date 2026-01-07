@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Box,
   Button,
@@ -115,7 +114,6 @@ function formatMMSS(totalSeconds: number) {
 }
 
 export default function TaskHumanFirst() {
-  const nav = useNavigate();
   const session = useSession();
   const theme = useTheme();
 
@@ -331,7 +329,8 @@ export default function TaskHumanFirst() {
         return;
       }
 
-      nav("/done");
+      // Redirect to Prolific completion URL
+      window.location.href = "https://app.prolific.com/submissions/complete?cc=C1QDK8F6";
     } catch (err: any) {
       console.error(err);
       setToast({
