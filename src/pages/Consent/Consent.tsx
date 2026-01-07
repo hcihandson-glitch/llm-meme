@@ -18,7 +18,6 @@ import {
   useTheme,
 } from "@mui/material";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
 const ConsentForm = () => {
   const [isAgreed1, setIsAgreed1] = useState(false);
