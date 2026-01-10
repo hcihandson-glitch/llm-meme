@@ -11,7 +11,6 @@ import {
   Snackbar,
   Alert,
   LinearProgress,
-  Tooltip,
   Paper,
   Chip,
   Container,
@@ -275,6 +274,7 @@ type AIMemeData = {
   bucket: string;
   created_at: string;
   pk: string;
+  variation_number?: number;
 };
 
 type IdeaState = {
