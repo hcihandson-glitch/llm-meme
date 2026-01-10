@@ -30,10 +30,10 @@ const ConsentForm = () => {
 
   const handleAgree = () => {
     setConsented(true);
-    setCondition("human-first");
+    setCondition("ai-first");
 
     const queryString = searchParams.toString();
-    navigate(`/task/human-first?${queryString}`);
+    navigate(`/task/ai-first?${queryString}`);
   };
 
   return (
