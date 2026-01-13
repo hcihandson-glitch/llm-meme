@@ -164,6 +164,7 @@ type SubmissionRow = {
   image_url?: string;
   image_path?: string;
   variation_number?: number;
+  memenumber?: number;
   created_at?: string;
 };
 
@@ -439,6 +440,7 @@ export default function Review() {
         template_id: current.template_id ?? null,
         variation_number: current.variation_number ?? null,
         task: current.task ?? null,
+        memenumber: current.memenumber ?? null,
         humor,
         shareability,
         creativity,
