@@ -28,7 +28,6 @@ import {
   IconButton,
 } from "@mui/material";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ThumbUpIcon from "@mui/icons-material/ThumbUp";
 import ShareIcon from "@mui/icons-material/Share";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
@@ -283,7 +282,6 @@ export default function Review() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [assignedMemes, setAssignedMemes] = useState<SubmissionRow[]>([]);
   const [toast, setToast] = useState<{
     open: boolean;
     msg: string;
@@ -357,7 +355,6 @@ export default function Review() {
 
         if (!mounted) return;
 
-        setAssignedMemes(assignedMemesData);
         setSubmissions(assignedMemesData);
         setLoading(false);
 
@@ -399,7 +396,7 @@ export default function Review() {
       setToast({
         open: true,
         msg: "Time's up! Please finish your current review.",
-        severity: "warning",
+        severity: "info",
       });
     }
   }, [secondsLeft]);
@@ -411,7 +408,6 @@ export default function Review() {
     return Math.round(((index + 1) / submissions.length) * 100);
   }, [index, submissions.length]);
 
-  const timerProgressPct = Math.round(((TOTAL_REVIEW_SECONDS - secondsLeft) / TOTAL_REVIEW_SECONDS) * 100);
   const isLowTime = secondsLeft <= 60;
 
   const marks = useMemo(
