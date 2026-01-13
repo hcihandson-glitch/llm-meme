@@ -430,6 +430,9 @@ export default function Review() {
       return;
     }
 
+    // Prevent double submission
+    if (saving) return;
+
     setSaving(true);
     try {
       const payload = {
@@ -453,7 +456,24 @@ export default function Review() {
       } as any;
 
       const { error: insertError } = await supabase.from("meme_reviews").insert([payload]);
-      if (insertError) throw insertError;
+      
+      // Handle duplicate key error gracefully (shouldn't happen, but just in case)
+      if (insertError) {
+        if (insertError.code === '23505') { // Postgres unique violation code
+          console.log("Duplicate review detected, skipping...");
+          setToast({ open: true, msg: "Already reviewed - moving to next", severity: "info" });
+          const next = index + 1;
+          if (next < submissions.length) {
+            setIndex(next);
+          } else {
+            setToast({ open: true, msg: "All done — thank you!", severity: "success" });
+            setTimeout(() => nav("/done"), 1500);
+          }
+          setSaving(false);
+          return;
+        }
+        throw insertError;
+      }
 
       setToast({ open: true, msg: "Rating saved", severity: "success" });
 
