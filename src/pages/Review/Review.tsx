@@ -356,10 +356,15 @@ export default function Review() {
 
         if (!mounted) return;
 
-        setSubmissions(assignedMemesData);
+        // Ensure we only have 30 memes (10 per topic)
+        const limitedMemes = assignedMemesData.slice(0, 30);
+        setSubmissions(limitedMemes);
         setLoading(false);
 
-        console.log(`🎯 Loaded ${assignedMemesData.length}/30 memes in total`);
+        console.log(`🎯 Loaded ${limitedMemes.length}/30 memes in total`);
+        console.log(`📊 Breakdown by topic:`, 
+          topics.map((topicId, idx) => `${topicId}: ${allVariationNumbers[idx].length} memes`)
+        );
 
       } catch (err: any) {
         console.error("Error loading review memes:", err);
