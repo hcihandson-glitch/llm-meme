@@ -276,7 +276,7 @@ async function getUnusedReviewVariations(
 export default function Review() {
   const nav = useNavigate();
   const theme = useTheme();
-  const { participantId } = useSession();
+  const { participantId, prolificPid, studyId, sessionId } = useSession();
 
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
   const [index, setIndex] = useState(0);
@@ -436,6 +436,9 @@ export default function Review() {
         submission_id: current.id,
         submission_participant_id: current.participant_id ?? null,
         reviewer_participant_id: participantId,
+        prolific_pid: prolificPid,
+        study_id: studyId,
+        session_id: sessionId,
         topic_id: current.topic_id ?? null,
         template_id: current.template_id ?? null,
         variation_number: current.variation_number ?? null,
