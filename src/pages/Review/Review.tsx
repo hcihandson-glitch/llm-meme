@@ -269,22 +269,28 @@ async function getUnusedReviewVariations(
     .select("variation_number");
 
   if (insertError) {
-    console.error("Batch insert error:", insertError);
-    // Fallback: try individual inserts for conflicts
+    console.warn("Batch insert had conflicts, trying individual inserts...", insertError);
+    // Fallback: try individual inserts, skip conflicts silently
     for (const variation of unusedVariations) {
-      const { error } = await supabase
+      const { data: singleInsert, error } = await supabase
         .from("review_assignments")
         .insert({
           reviewer_participant_id: reviewerParticipantId,
           topic_id: topicId,
           variation_number: variation,
           assigned_at: new Date().toISOString(),
-        });
+        })
+        .select("variation_number");
       
-      if (!error) {
+      // Only add if successfully inserted (skip 409 conflicts)
+      if (!error && singleInsert && singleInsert.length > 0) {
         assignedVariations.push(variation);
-        if (assignedVariations.length >= count) break;
+      } else if (error && error.code !== '23505') {
+        // Log non-duplicate errors
+        console.error(`Error inserting variation ${variation}:`, error);
       }
+      
+      if (assignedVariations.length >= count) break;
     }
   } else {
     const insertedVars = (inserted || []).map(i => i.variation_number);
@@ -482,20 +488,30 @@ export default function Review() {
         creativity,
         image_url: current.image_url ?? null,
         caption: current.caption ?? null,
-        created_at: new Date().toISOString(),
       } as any;
 
+      console.log("💾 Saving review:", { 
+        meme: index + 1, 
+        topic: current.topic_id, 
+        variation: current.variation_number,
+        reviewer: reviewerId 
+      });
+
       // Use upsert to update rating if already reviewed
-      const { error: upsertError } = await supabase
+      const { data, error: upsertError } = await supabase
         .from("meme_reviews")
         .upsert([payload], {
-          onConflict: 'reviewer_participant_id,topic_id,variation_number'
-        });
+          onConflict: 'reviewer_participant_id,topic_id,variation_number',
+          ignoreDuplicates: false
+        })
+        .select();
       
       if (upsertError) {
+        console.error("❌ Save error:", upsertError);
         throw upsertError;
       }
 
+      console.log("✅ Saved successfully:", data);
       setToast({ open: true, msg: "Rating saved", severity: "success" });
 
       const next = index + 1;
