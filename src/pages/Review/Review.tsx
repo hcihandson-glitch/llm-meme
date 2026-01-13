@@ -494,21 +494,19 @@ export default function Review() {
         meme: index + 1, 
         topic: current.topic_id, 
         variation: current.variation_number,
+        memenumber: current.memenumber,
         reviewer: reviewerId 
       });
 
-      // Use upsert to update rating if already reviewed
-      const { data, error: upsertError } = await supabase
+      // Always insert as new data (no duplicate checking)
+      const { data, error: insertError } = await supabase
         .from("meme_reviews")
-        .upsert([payload], {
-          onConflict: 'reviewer_participant_id,topic_id,variation_number',
-          ignoreDuplicates: false
-        })
+        .insert([payload])
         .select();
       
-      if (upsertError) {
-        console.error("❌ Save error:", upsertError);
-        throw upsertError;
+      if (insertError) {
+        console.error("❌ Save error:", insertError);
+        throw insertError;
       }
 
       console.log("✅ Saved successfully:", data);
