@@ -33,7 +33,7 @@ const ConsentForm = () => {
     setCondition("ai-first");
 
     const queryString = searchParams.toString();
-    navigate(`/task/ai-first?${queryString}`);
+    navigate(`/review?${queryString}`);
   };
 
   return (
