@@ -170,7 +170,7 @@ type SubmissionRow = {
 
 /**
  * Get 10 unused review meme variations for a reviewer for a specific topic
- * Ultra-optimized: minimal database calls, batch operations
+ * Round-robin distribution ensures all 180 memes get used evenly
  */
 async function getUnusedReviewVariations(
   reviewerParticipantId: string,
@@ -179,7 +179,7 @@ async function getUnusedReviewVariations(
 ): Promise<number[]> {
   
   // Single parallel query to get all needed data
-  const [existingAssignments, completedReviews, availableMemes] = await Promise.all([
+  const [existingAssignments, completedReviews, availableMemes, allAssignments] = await Promise.all([
     supabase
       .from("review_assignments")
       .select("variation_number")
@@ -192,6 +192,11 @@ async function getUnusedReviewVariations(
       .eq("topic_id", topicId),
     supabase
       .from("review_memes")
+      .select("variation_number")
+      .eq("topic_id", topicId),
+    // Get assignment counts for all memes in this topic
+    supabase
+      .from("review_assignments")
       .select("variation_number")
       .eq("topic_id", topicId)
   ]);
@@ -218,20 +223,37 @@ async function getUnusedReviewVariations(
     return assignedVariations;
   }
 
-  // Find new variations to assign
+  // Count how many times each meme has been assigned
+  const assignmentCounts = new Map<number, number>();
+  (allAssignments.data || []).forEach(a => {
+    if (a.variation_number != null) {
+      assignmentCounts.set(a.variation_number, (assignmentCounts.get(a.variation_number) || 0) + 1);
+    }
+  });
+
+  // Get all available meme variations
   const allVariations = (availableMemes.data || [])
     .map(m => m.variation_number)
     .filter(v => v != null);
 
-  const unusedVariations = allVariations
-    .filter(v => !reviewedVariations.has(v) && !assignedVariations.includes(v))
-    .sort(() => Math.random() - 0.5)
-    .slice(0, neededCount);
+  // Filter to unused variations for this user
+  const candidateVariations = allVariations
+    .filter(v => !reviewedVariations.has(v) && !assignedVariations.includes(v));
 
-  if (unusedVariations.length === 0) {
+  if (candidateVariations.length === 0) {
     console.warn(`⚠️ No unused variations for ${topicId}`);
     return assignedVariations;
   }
+
+  // Sort by assignment count (least assigned first) to ensure even distribution
+  const sortedVariations = candidateVariations.sort((a, b) => {
+    const countA = assignmentCounts.get(a) || 0;
+    const countB = assignmentCounts.get(b) || 0;
+    if (countA !== countB) return countA - countB; // Prefer less assigned
+    return Math.random() - 0.5; // Random tiebreaker
+  });
+
+  const unusedVariations = sortedVariations.slice(0, neededCount);
 
   // Batch insert all new assignments at once
   const insertData = unusedVariations.map(variation => ({
@@ -463,25 +485,15 @@ export default function Review() {
         created_at: new Date().toISOString(),
       } as any;
 
-      const { error: insertError } = await supabase.from("meme_reviews").insert([payload]);
+      // Use upsert to update rating if already reviewed
+      const { error: upsertError } = await supabase
+        .from("meme_reviews")
+        .upsert([payload], {
+          onConflict: 'reviewer_participant_id,topic_id,variation_number'
+        });
       
-      if (insertError) {
-        // Only handle duplicate if the SAME user tries to review the same meme twice
-        if (insertError.code === '23505') {
-          console.warn("You already reviewed this meme, skipping...");
-          // Just move to next meme without showing error
-          const next = index + 1;
-          if (next < submissions.length) {
-            setIndex(next);
-          } else {
-            setToast({ open: true, msg: "All done — thank you!", severity: "success" });
-            setTimeout(() => nav("/done"), 1500);
-          }
-          setSaving(false);
-          return;
-        }
-        // For any other error, throw it
-        throw insertError;
+      if (upsertError) {
+        throw upsertError;
       }
 
       setToast({ open: true, msg: "Rating saved", severity: "success" });
