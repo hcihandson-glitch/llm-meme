@@ -278,6 +278,9 @@ export default function Review() {
   const theme = useTheme();
   const { participantId, prolificPid, studyId, sessionId } = useSession();
 
+  // Use Prolific PID as primary identifier, fallback to participantId
+  const reviewerId = prolificPid || participantId;
+
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -326,7 +329,7 @@ export default function Review() {
 
         // Parallel: assign variations for all topics at once
         const assignmentPromises = topics.map(topicId => 
-          getUnusedReviewVariations(participantId, topicId, 10)
+          getUnusedReviewVariations(reviewerId, topicId, 10)
         );
 
         const allVariationNumbers = await Promise.all(assignmentPromises);
@@ -380,7 +383,7 @@ export default function Review() {
     return () => {
       mounted = false;
     };
-  }, [participantId]);
+  }, [reviewerId]);
 
   useEffect(() => {
     // reset local ratings when index changes
@@ -435,7 +438,7 @@ export default function Review() {
       return;
     }
 
-    // Prevent double submission
+    // Prevent double-click submission
     if (saving) return;
 
     setSaving(true);
@@ -443,7 +446,7 @@ export default function Review() {
       const payload = {
         submission_id: current.id,
         submission_participant_id: current.participant_id ?? null,
-        reviewer_participant_id: participantId,
+        reviewer_participant_id: reviewerId,
         prolific_pid: prolificPid,
         study_id: studyId,
         session_id: sessionId,
@@ -462,11 +465,11 @@ export default function Review() {
 
       const { error: insertError } = await supabase.from("meme_reviews").insert([payload]);
       
-      // Handle duplicate key error gracefully (shouldn't happen, but just in case)
       if (insertError) {
-        if (insertError.code === '23505') { // Postgres unique violation code
-          console.log("Duplicate review detected, skipping...");
-          setToast({ open: true, msg: "Already reviewed - moving to next", severity: "info" });
+        // Only handle duplicate if the SAME user tries to review the same meme twice
+        if (insertError.code === '23505') {
+          console.warn("You already reviewed this meme, skipping...");
+          // Just move to next meme without showing error
           const next = index + 1;
           if (next < submissions.length) {
             setIndex(next);
@@ -477,6 +480,7 @@ export default function Review() {
           setSaving(false);
           return;
         }
+        // For any other error, throw it
         throw insertError;
       }
 
@@ -487,7 +491,6 @@ export default function Review() {
         setIndex(next);
       } else {
         setToast({ open: true, msg: "All done — thank you!", severity: "success" });
-        // Navigate to done page (which redirects to Prolific) after a short delay
         setTimeout(() => nav("/done"), 1500);
       }
     } catch (e: any) {
@@ -562,7 +565,7 @@ export default function Review() {
                   }} 
                 />
                 <Chip 
-                  label={participantId || "unknown"} 
+                  label={prolificPid || participantId || "unknown"} 
                   sx={{ 
                     bgcolor: "rgba(255,255,255,0.2)", 
                     color: "white",
