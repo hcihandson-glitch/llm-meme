@@ -252,17 +252,31 @@ async function getUnusedReviewVariations(
     return assignedVariations;
   }
 
-  // Sort by assignment count (least assigned first) to ensure even distribution
-  const sortedVariations = candidateVariations.sort((a, b) => {
-    const countA = assignmentCounts.get(a) || 0;
-    const countB = assignmentCounts.get(b) || 0;
-    if (countA !== countB) return countA - countB; // Prefer less assigned
-    return Math.random() - 0.5; // Random tiebreaker
+  // Randomize the selection with preference for less-assigned memes
+  // Group by assignment count, then shuffle within each group
+  const variationsByCount = new Map<number, number[]>();
+  candidateVariations.forEach(v => {
+    const count = assignmentCounts.get(v) || 0;
+    if (!variationsByCount.has(count)) {
+      variationsByCount.set(count, []);
+    }
+    variationsByCount.get(count)!.push(v);
   });
 
-  console.log(`📊 Topic ${topicId}: First 10 sorted variations to assign:`, sortedVariations.slice(0, 10));
+  // Sort counts ascending, shuffle variations within each count group
+  const sortedCounts = Array.from(variationsByCount.keys()).sort((a, b) => a - b);
+  const randomizedVariations: number[] = [];
+  
+  for (const count of sortedCounts) {
+    const variations = variationsByCount.get(count)!;
+    // Shuffle this group randomly
+    const shuffled = variations.sort(() => Math.random() - 0.5);
+    randomizedVariations.push(...shuffled);
+  }
 
-  const unusedVariations = sortedVariations.slice(0, neededCount);
+  console.log(`📊 Topic ${topicId}: First 10 randomized variations to assign:`, randomizedVariations.slice(0, 10));
+
+  const unusedVariations = randomizedVariations.slice(0, neededCount);
 
   // Batch insert all new assignments at once
   const insertData = unusedVariations.map(variation => ({
