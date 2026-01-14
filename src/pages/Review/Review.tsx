@@ -192,7 +192,7 @@ async function getUnusedReviewVariations(
       .eq("topic_id", topicId),
     supabase
       .from("review_memes")
-      .select("variation_number")
+      .select("variation_number, memenumber")
       .eq("topic_id", topicId),
     // Get assignment counts for all memes in this topic
     supabase
@@ -231,14 +231,20 @@ async function getUnusedReviewVariations(
     }
   });
 
-  // Get all available meme variations
-  const allVariations = (availableMemes.data || [])
+  // Get all available meme variations - ONLY memes with memenumber > 100
+  const allMemes = (availableMemes.data || []).filter(m => m.memenumber > 100);
+  const allVariations = allMemes
     .map(m => m.variation_number)
     .filter(v => v != null);
+
+  console.log(`📊 Topic ${topicId}: Total memes with memenumber > 100 = ${allMemes.length}`);
+  console.log(`📊 Topic ${topicId}: Variation numbers available:`, allVariations);
 
   // Filter to unused variations for this user
   const candidateVariations = allVariations
     .filter(v => !reviewedVariations.has(v) && !assignedVariations.includes(v));
+
+  console.log(`📊 Topic ${topicId}: Candidate variations for assignment = ${candidateVariations.length}`);
 
   if (candidateVariations.length === 0) {
     console.warn(`⚠️ No unused variations for ${topicId}`);
@@ -252,6 +258,8 @@ async function getUnusedReviewVariations(
     if (countA !== countB) return countA - countB; // Prefer less assigned
     return Math.random() - 0.5; // Random tiebreaker
   });
+
+  console.log(`📊 Topic ${topicId}: First 10 sorted variations to assign:`, sortedVariations.slice(0, 10));
 
   const unusedVariations = sortedVariations.slice(0, neededCount);
 
