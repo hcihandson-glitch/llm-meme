@@ -193,7 +193,8 @@ async function getUnusedReviewVariations(
     supabase
       .from("review_memes")
       .select("variation_number, memenumber")
-      .eq("topic_id", topicId),
+      .eq("topic_id", topicId)
+      .gt("memenumber", 100),  // Only fetch memes with memenumber > 100
     // Get assignment counts for all memes in this topic
     supabase
       .from("review_assignments")
@@ -231,8 +232,8 @@ async function getUnusedReviewVariations(
     }
   });
 
-  // Get all available meme variations - ONLY memes with memenumber > 100
-  const allMemes = (availableMemes.data || []).filter(m => m.memenumber > 100);
+  // Get all available meme variations (already filtered for memenumber > 100 in query)
+  const allMemes = availableMemes.data || [];
   const allVariations = allMemes
     .map(m => m.variation_number)
     .filter(v => v != null);
@@ -376,11 +377,13 @@ export default function Review() {
           if (variations.length === 0) return Promise.resolve([]);
 
           // Single query per topic using IN clause (much faster than 10 individual queries)
+          // Also filter for memenumber > 100
           return supabase
             .from("review_memes")
             .select("*")
             .eq("topic_id", topicId)
             .in("variation_number", variations)
+            .gt("memenumber", 100)  // Only fetch memes with memenumber > 100
             .then(({ data, error }) => {
               if (error) {
                 console.error(`Error fetching memes for ${topicId}:`, error);
